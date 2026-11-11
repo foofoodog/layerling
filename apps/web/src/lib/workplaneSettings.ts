@@ -97,6 +97,7 @@ export const DEFAULT_WORKPLANE_WORKSPACE: WorkplaneWorkspaceSettings = {
   selectBeforeMove: false,
   frameByDirection: false,
   pasteCentered: false,
+  pasteParametricShapes: false,
   doubleClickOpensSketch: true,
   doubleClickOpensGroup: true,
   doubleClickCentersView: true,
@@ -334,7 +335,7 @@ export function snapGridForUnits(units: string, snap: GridSize): GridSize {
 }
 const customizableShapeKinds: ShapeKind[] = [
   "box", "roundedBox", "cylinder", "slot", "ellipse", "sphere", "sketch", "scribble", "cone", "pyramid", "roof", "text", "roundRoof",
-  "halfSphere", "paraboloid", "curvedCone", "torus", "tube", "bentTube", "star", "heart", "crescent", "gear", "hirth", "pulley", "honeycomb", "hinge", "knurl", "dovetail", "screwBoss", "snapFit", "rib", "counterbore", "countersink", "doubleCountersink", "finishingWasher", "teardrop", "port", "loft", "vase", "thread", "spring", "gridfinity", "ring", "wedge", "polygon", "icosahedron", "ruler", "mesh",
+  "halfSphere", "paraboloid", "curvedCone", "torus", "tube", "bentTube", "star", "heart", "crescent", "gear", "hirth", "pulley", "honeycomb", "hinge", "knurl", "dovetail", "screwBoss", "snapFit", "rib", "counterbore", "countersink", "doubleCountersink", "finishingWasher", "teardrop", "port", "loft", "vase", "thread", "spring", "gridfinity", "ring", "wedge", "polygon", "icosahedron", "ruler", "script", "mesh",
 ];
 
 function numberOrDefault(value: unknown, fallback: number) {
@@ -768,6 +769,10 @@ export function normalizeShapeCustomizations(value: unknown, fallback: ShapeCust
       entry.pulleyHubHeight = optionalShapeNumber(source.pulleyHubHeight, fallbackEntry?.pulleyHubHeight, 0, MAX_PULLEY_HUB_HEIGHT);
       entry.pulleyHubDiameter = optionalShapeNumber(source.pulleyHubDiameter, fallbackEntry?.pulleyHubDiameter, MIN_CUSTOM_SHAPE_DIMENSION, MAX_CUSTOM_SHAPE_DIMENSION);
     }
+    if (kind === "script") {
+      entry.scriptSource = typeof source.scriptSource === "string" ? source.scriptSource : fallbackEntry?.scriptSource;
+      entry.scriptParams = source.scriptParams && typeof source.scriptParams === "object" ? source.scriptParams : fallbackEntry?.scriptParams;
+    }
     const compact = Object.fromEntries(Object.entries(entry).filter(([, entryValue]) => entryValue !== undefined)) as ShapeCustomization;
     if (Object.keys(compact).length > 0) normalized[kind] = compact;
   });
@@ -936,6 +941,7 @@ export function normalizeWorkspaceSettings(value: unknown, fallback: WorkplaneWo
     selectBeforeMove: booleanOrDefault(candidate.selectBeforeMove, fallback.selectBeforeMove),
     frameByDirection: booleanOrDefault(candidate.frameByDirection, fallback.frameByDirection),
     pasteCentered: booleanOrDefault(candidate.pasteCentered, fallback.pasteCentered),
+    pasteParametricShapes: booleanOrDefault(candidate.pasteParametricShapes, fallback.pasteParametricShapes),
     doubleClickOpensSketch: booleanOrDefault(candidate.doubleClickOpensSketch, fallback.doubleClickOpensSketch),
     doubleClickOpensGroup: booleanOrDefault(candidate.doubleClickOpensGroup, fallback.doubleClickOpensGroup),
     doubleClickCentersView: booleanOrDefault(candidate.doubleClickCentersView, fallback.doubleClickCentersView),

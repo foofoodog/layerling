@@ -3358,6 +3358,7 @@ export const MESSAGES_DA: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Polygon",
   "shape.ruler": "Lineal",
+  "shape.script": "Script Shape",
   "shape.group": "Gruppe",
   "shape.bundle": "Bundt",
   "inspector.bundleNote": "Et bundt holder kun dets dele sammen: hver bevarer sin farve og slags, dets huller skærer aldrig i dets egne dele, heller ikke senere i en gruppe (der skærer de kun i de andre dele), og i en eksport er hver del sin egen form. E åbner det for redigering, Ctrl+Shift+G skiller det ad.",

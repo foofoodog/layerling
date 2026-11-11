@@ -1933,6 +1933,7 @@ export const MESSAGES_HU: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Sokszög",
   "shape.ruler": "Vonalzó",
+  "shape.script": "Script Shape",
   "shape.group": "Csoport",
   "shape.bundle": "Köteg",
   "inspector.bundleNote": "A köteg csak összetartja a részeit: mindegyik megtartja a színét és a fajtáját, a lyukai soha nem vágják a saját részeit, később egy csoportban sem (ott csak a többi részt vágják), exportáláskor pedig minden rész külön test. Az E megnyitja szerkesztésre, a Ctrl+Shift+G szétszedi.",

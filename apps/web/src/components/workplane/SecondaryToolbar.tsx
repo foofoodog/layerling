@@ -5,7 +5,7 @@ import { FocusModeBar } from "@/components/workplane/FocusModeBar";
 import { FOCUS_MODE_CHANGE_EVENT, FOCUS_MODE_SHORTCUT } from "@/lib/focusMode";
 import { ShapeMenuPanel } from "@/components/workplane/ShapeMenuPanel";
 import { ShapeLibraryList } from "@/components/workplane/ShapeLibraryList";
-import { AlertTriangle, ArchiveRestore, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Check, CircleHelp, Percent, Circle as CircleIcon, Eye, EyeOff, Hexagon as HexagonIcon, ListTree, Maximize2, Minimize2, Pencil, Pentagon as PentagonIcon, Pin, PinOff, Rotate3d, Route as RouteIcon, ScanEye, Search, Sparkles, Square as SquareIcon, Star as StarIcon, Triangle as TriangleIcon, X } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Check, CircleHelp, Code2, Percent, Circle as CircleIcon, Eye, EyeOff, Hexagon as HexagonIcon, ListTree, Maximize2, Minimize2, Pencil, Pentagon as PentagonIcon, Pin, PinOff, Rotate3d, Route as RouteIcon, ScanEye, Search, Sparkles, Square as SquareIcon, Star as StarIcon, Triangle as TriangleIcon, X } from "lucide-react";
 import { OPEN_FILE_BACKUPS_EVENT } from "@/lib/fileBackups";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -404,6 +404,8 @@ export function SecondaryToolbar({
   overhangsVisible,
   overhangAngle,
   onToggleOverhangs,
+  renderModelShapes,
+  countModelMatches,
   renderMyShapes,
   countMyShapeMatches,
   shapeCustomizations,
@@ -608,6 +610,10 @@ export function SecondaryToolbar({
   overhangsVisible: boolean;
   overhangAngle: number;
   onToggleOverhangs: () => void;
+  /** Model shapes above the custom shapes; gets the way to close the menu. */
+  renderModelShapes?: (close: () => void, query?: string) => ReactNode;
+  /** How many model shapes match a search in the shapes window. */
+  countModelMatches?: (query: string) => number;
   /** Custom shapes above the library; gets the way to close the menu. */
   renderMyShapes?: (close: () => void, query?: string) => ReactNode;
   /** How many custom shapes match a search in the shapes window (#1537). */
@@ -1450,6 +1456,8 @@ export function SecondaryToolbar({
                   shapes={shownShapeAssets}
                   label={(shape) => shapeAssetMenuLabel(shape).replace(/\s+/g, " ")}
                   renderTile={shapeTile}
+                  modelShapes={renderModelShapes ? (query: string) => renderModelShapes(closeShapesAfterPick, query) : null}
+                  countModelMatches={countModelMatches}
                   customShapes={renderMyShapes ? (query: string) => renderMyShapes(closeShapesAfterPick, query) : null}
                   countCustomMatches={countMyShapeMatches}
                 />
@@ -1852,7 +1860,7 @@ export function SecondaryToolbar({
         {/* The brand, in the same corner as on the start page. Not a link:
             leaving the editor is not something to trigger by accident. */}
         <div className="toolbar-brand">
-          <img src="/assets/layerling/layerling-logo.svg" alt="Layerling" />
+          <img src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/assets/layerling/layerling-logo.svg`} alt="Layerling" />
           <span className="toolbar-brand-text">
             <span className="toolbar-brand-name">layerling</span>
             <span className="toolbar-brand-tagline">{t("brand.tagline")}</span>

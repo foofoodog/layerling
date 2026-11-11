@@ -2263,6 +2263,7 @@ export const MESSAGES_SL: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Mnogokotnik",
   "shape.ruler": "Ravnilo",
+  "shape.script": "Script Shape",
   "shape.group": "Skupina",
   "shape.bundle": "Sveženj",
   "inspector.bundleNote": "Sveženj le drži dele skupaj: vsak ohrani svojo barvo in vrsto, njegove luknje nikoli ne izrežejo njegovih lastnih delov, tudi pozneje v skupini ne (tam izrežejo le druge dele), pri izvozu pa je vsak del svoje telo. E ga odpre za urejanje, Ctrl+Shift+G ga razstavi.",

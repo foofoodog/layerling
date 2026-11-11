@@ -2922,6 +2922,7 @@ export const MESSAGES_IT: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Poligono",
   "shape.ruler": "Righello",
+  "shape.script": "Script Shape",
   "shape.group": "Gruppo",
   "shape.bundle": "Insieme",
   "inspector.bundleNote": "Un insieme mantiene unite le sue parti: ognuna conserva colore e tipo, i suoi fori non tagliano mai le sue parti, nemmeno dopo in un gruppo (lì tagliano solo le altre parti) e, durante l'esportazione, ogni parte rimane un corpo separato. Premi E per modificarlo e Ctrl+Shift+G per separarne le parti.",

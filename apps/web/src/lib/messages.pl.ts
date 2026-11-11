@@ -2900,6 +2900,7 @@ export const MESSAGES_PL: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Wielokąt",
   "shape.ruler": "Linijka",
+  "shape.script": "Script Shape",
   "shape.group": "Grupa",
   "shape.bundle": "Zestaw",
   "inspector.bundleNote": "Zestaw tylko trzyma swoje części razem: każda zachowuje swój kolor i rodzaj, jego otwory nigdy nie wycinają jego własnych części, także później w grupie (tam wycinają tylko pozostałe części), a w eksporcie każda część jest osobną bryłą. E otwiera go do edycji, Ctrl+Shift+G rozdziela go.",

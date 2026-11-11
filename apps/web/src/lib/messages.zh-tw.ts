@@ -2886,6 +2886,7 @@ export const MESSAGES_ZH_TW: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "多邊形",
   "shape.ruler": "標尺",
+  "shape.script": "Script Shape",
   "shape.group": "群組",
   "shape.bundle": "綁定",
   "inspector.bundleNote": "綁定只是把部件固定在一起：每個部件各自保留顏色與類型，孔永遠不會挖除自己的部件，之後放進群組也一樣（在群組中只挖除其他部件），匯出時每個部件都是獨立實體。按 E 可開啟編輯，Ctrl+Shift+G 可取消綁定。",

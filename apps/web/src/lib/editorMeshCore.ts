@@ -807,7 +807,7 @@ function groupedThreadAtStretch(thread: WorkplaneShape, [sx, sy, sz]: readonly [
 }
 
 export function meshForShape(shape: WorkplaneShape): MeshData {
-  if (shape.kind === "mesh" && shape.importedMesh) {
+  if ((shape.kind === "mesh" || shape.kind === "script") && shape.importedMesh) {
     return importedMeshForShape(shape);
   }
 

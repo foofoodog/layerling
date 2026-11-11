@@ -1,4 +1,5 @@
 import { canonicalizeShape } from "@/lib/workplaneShapes";
+import { DEFAULT_SCRIPT_SOURCE, extractScriptTitle } from "@/lib/scriptShape";
 import { regularPolygonAspect } from "@/lib/regularPolygonFootprint";
 import { normalizePyramidTop } from "@/lib/pyramidGeometry";
 import { createLocalId } from "@/lib/localIds";
@@ -269,6 +270,7 @@ const SHAPE_LABEL_KEYS: Record<string, MessageKey> = {
   gridfinity: "shape.gridfinity",
   polygon: "shape.polygon",
   ruler: "shape.ruler",
+  script: "shape.script",
 };
 
 export type ToolbarShapeAsset = ShapeAsset & { menuIcon: string };
@@ -392,7 +394,20 @@ export function shapeAssetColor(asset: ShapeAsset, customization: ShapeCustomiza
  * itself: a hand-kept list here missed the rounded box and the ruler, and
  * dragging them onto the workplane silently did nothing (#100).
  */
-const DROPPABLE_SHAPE_KINDS = new Set<ShapeKind>(toolbarShapeAssets.map((asset) => asset.kind));
+export function makeScriptShapeAsset(shape: WorkplaneShape): ToolbarShapeAsset {
+  return {
+    id: `script_${shape.id}`,
+    name: shape.name || "Parametric Shape",
+    src: "assets/editor/shape-icons-gray/polygon.png",
+    menuIcon: "assets/editor/shape-icons-gray/polygon.png",
+    kind: "script",
+    color: shape.color || "#3a7bd5",
+    scriptSource: shape.scriptSource,
+    scriptParams: shape.scriptParams,
+  };
+}
+
+const DROPPABLE_SHAPE_KINDS = new Set<ShapeKind>([...toolbarShapeAssets.map((asset) => asset.kind), "script"]);
 
 /** The library shape carried by a drag, or null when the data is not one. */
 export function parseDroppedShapeAsset(raw: string): ShapeAsset | null {
@@ -403,14 +418,22 @@ export function parseDroppedShapeAsset(raw: string): ShapeAsset | null {
     if (
       typeof asset.id !== "string" ||
       typeof asset.name !== "string" ||
-      typeof asset.src !== "string" ||
       typeof asset.color !== "string" ||
       !DROPPABLE_SHAPE_KINDS.has(asset.kind as ShapeKind) ||
       (asset.hole !== undefined && typeof asset.hole !== "boolean")
     ) {
       return null;
     }
-    return { id: asset.id, name: asset.name, src: asset.src, kind: asset.kind as ShapeKind, color: asset.color, hole: asset.hole };
+    return {
+      id: asset.id,
+      name: asset.name,
+      src: asset.src ?? "",
+      kind: asset.kind as ShapeKind,
+      color: asset.color,
+      hole: asset.hole,
+      scriptSource: asset.scriptSource,
+      scriptParams: asset.scriptParams,
+    };
   } catch {
     return null;
   }
@@ -454,6 +477,9 @@ export function shapeAssetDefaultDimensions(kind: ShapeKind) {
   }
   if (kind === "ruler") {
     return { width: 150, depth: RULER_DEPTH, height: RULER_HEIGHT };
+  }
+  if (kind === "script") {
+    return { width: 80, depth: 80, height: 8 };
   }
   if (kind === "star") {
     return { width: DEFAULT_STAR_OUTER_SIZE, depth: DEFAULT_STAR_OUTER_SIZE, height: DEFAULT_STAR_HEIGHT };
@@ -705,6 +731,11 @@ export function shapeAssetSpecialDefaults(kind: ShapeKind, dimensions = shapeAss
       gearPressureAngle: DEFAULT_GEAR_PRESSURE_ANGLE,
       gearBacklash: DEFAULT_GEAR_BACKLASH,
       gearRim: DEFAULT_GEAR_RIM,
+    };
+  }
+  if (kind === "script") {
+    return {
+      scriptSource: DEFAULT_SCRIPT_SOURCE,
     };
   }
   return {};
@@ -986,6 +1017,9 @@ export function sceneShape(shape: Partial<WorkplaneShape> & Pick<WorkplaneShape,
     groupedBaseDepth: shape.groupedBaseDepth,
     groupedBaseHeight: shape.groupedBaseHeight,
     groupOperation: shape.groupOperation,
+    scriptSource: shape.scriptSource,
+    scriptParams: shape.scriptParams,
+    scriptError: shape.scriptError,
     locked: shape.locked ?? false,
     hidden: shape.hidden ?? false,
   });
@@ -1001,8 +1035,11 @@ export function sceneShape(shape: Partial<WorkplaneShape> & Pick<WorkplaneShape,
 export function clipboardShape(entry: unknown): WorkplaneShape | null {
   if (!entry || typeof entry !== "object") return null;
   const shape = entry as Partial<WorkplaneShape>;
-  const { name, kind, color } = shape;
+  let { name, kind, color } = shape;
   if (typeof name !== "string" || typeof kind !== "string" || typeof color !== "string") return null;
+  if (kind === "script" && (name === "Script Shape" || !name) && shape.scriptSource) {
+    name = extractScriptTitle(shape.scriptSource) ?? name;
+  }
   return canonicalizeShape({ ...sceneShape({ ...shape, name, kind, color }), ...shape, name, kind, color });
 }
 
@@ -1159,7 +1196,9 @@ export function makeShapeFromAsset(
 
   return {
     id: createLocalId(asset.id),
-    name: asset.name,
+    name: asset.kind === "script"
+      ? (asset.name || (extractScriptTitle(customization.scriptSource ?? asset.scriptSource ?? DEFAULT_SCRIPT_SOURCE) ?? "Parametric Shape"))
+      : asset.name,
     kind: asset.kind,
     color: shapeAssetColor(asset, customization),
     hole: asset.hole,
@@ -1390,6 +1429,8 @@ export function makeShapeFromAsset(
         })()
       : { topBottomFillet: undefined, bottomFillet: undefined }),
     roundedBoxQuality: asset.kind === "roundedBox" ? normalizeRoundedBoxQuality(customization.roundedBoxQuality ?? DEFAULT_ROUNDED_BOX_QUALITY) : undefined,
+    scriptSource: asset.kind === "script" ? (customization.scriptSource ?? asset.scriptSource ?? DEFAULT_SCRIPT_SOURCE) : undefined,
+    scriptParams: asset.kind === "script" ? (customization.scriptParams ?? asset.scriptParams ?? {}) : undefined,
     ...(bentTube ?? {}),
     ...(loftMeasures ? loftFieldsFromMeasures(loftMeasures) : {}),
     locked: false,

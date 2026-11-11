@@ -2928,6 +2928,7 @@ export const MESSAGES_RU: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Многоугольник",
   "shape.ruler": "Линейка",
+  "shape.script": "Script Shape",
   "shape.group": "Группа",
   "shape.bundle": "Связка",
   "inspector.bundleNote": "Связка только удерживает детали вместе: каждая сохраняет свой цвет и тип, её отверстия никогда не вырезают её собственные детали, даже позже в группе (там они вырезают только другие детали), а при экспорте каждая деталь — отдельное тело. E открывает её для правки, Ctrl+Shift+G развязывает её.",

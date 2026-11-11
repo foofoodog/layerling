@@ -2886,6 +2886,7 @@ export const MESSAGES_ZH_CN: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "多边形",
   "shape.ruler": "标尺",
+  "shape.script": "Script Shape",
   "shape.group": "分组",
   "shape.bundle": "捆绑",
   "inspector.bundleNote": "捆绑只是把部件固定在一起：每个部件保留自己的颜色和类型，孔永远不会挖掉自己的部件，之后放进组合也一样（在组合里只挖其他部件），导出时每个部件都是独立实体。按 E 可打开编辑，Ctrl+Shift+G 可取消捆绑。",

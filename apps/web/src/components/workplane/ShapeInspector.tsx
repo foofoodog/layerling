@@ -5,7 +5,7 @@ import { GuideHelpLink } from "@/components/GuideHelpLink";
 import { SnapGridMenuItems } from "@/components/workplane/SnapGridMenu";
 import { guideChapterForShape, guideSectionForShape } from "@/lib/guideLinks";
 import { useInspectorCard } from "@/lib/inspectorCards";
-import { AlignCenter, Cone, ChevronDown, ChevronUp, Cylinder, Eraser, Eye, EyeOff, FolderOpen, Grid3x3, ImageUp, Layers, Link2, Lock, Minus, Move3d, MousePointerClick, Pencil, Plus, RefreshCw, RotateCcw, Rotate3d, Ruler, Shield, ShieldCheck, Shrink, SlidersHorizontal, Spline, Split, Tags, Trash2, TrendingDown, Unlock, Waves } from "lucide-react";
+import { AlignCenter, Code, Cone, ChevronDown, ChevronUp, Cylinder, Eraser, Eye, EyeOff, FolderOpen, Grid3x3, ImageUp, Layers, Link2, Lock, Minus, Move3d, MousePointerClick, Pencil, Plus, RefreshCw, RotateCcw, Rotate3d, Ruler, Shield, ShieldCheck, Shrink, SlidersHorizontal, Spline, Split, Tags, Trash2, TrendingDown, Unlock, Waves } from "lucide-react";
 import { holdsShapeLock } from "@/lib/shapeLock";
 import { createPortal } from "react-dom";
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type Dispatch, type ReactNode, type SetStateAction } from "react";
@@ -218,6 +218,8 @@ import { SurfacePatternPicker } from "@/components/workplane/SurfacePatternPicke
 import { QR_BYTE_CAPACITY, qrByteLength, qrTextFits, type QrCodeSettings } from "@/lib/qrCode";
 import { MAX_SBC_BUTTON_REACH, MAX_SBC_CLEARANCE, MAX_SBC_REACH, MAX_SBC_UP_REACH, MIN_SBC_UP_REACH, normalizeSbcBoardSettings, SBC_BOARDS, SBC_BOARD_ORDER, sbcBoardHasButtons, sbcBoardHasGpio, sbcBoardHasLens, sbcBoardHasRibbon, type SbcBoardSettings, type SbcBoardType } from "@/lib/sbcBoards";
 import { ICON_TAG_LAYERS, iconTagFitCount, MAX_ICON_TAG_WIDTH, MAX_ICON_TAGS, MIN_ICON_TAG_WIDTH, normalizeIconTagCount, type IconLayerStack } from "@/lib/iconTag";
+import { DEFAULT_SCRIPT_SOURCE, extractScriptTitle, parseScriptParams, rebuildScriptShapeOffThread } from "@/lib/scriptShape";
+import { ScriptEditorModal } from "@/components/workplane/ScriptEditorModal";
 import { PICTURE_FILE_ACCEPT } from "@/lib/pictureIcon";
 import { customFontList, textFontLabel } from "@/lib/textFonts";
 import { SURFACE_TEXT_FONTS } from "@/lib/surfaceTextOutline";
@@ -2579,6 +2581,67 @@ function getShapePropertiesWithAppLimits(shape: WorkplaneShape, onUpdate: ShapeI
     ];
   }
 
+  if (shape.kind === "script") {
+    const source = shape.scriptSource ?? DEFAULT_SCRIPT_SOURCE;
+    const parsedParams = parseScriptParams(source);
+    const overrides = shape.scriptParams ?? {};
+
+    const scriptProps: ShapePropertyConfig[] = parsedParams.map((param) => {
+      const currentVal = overrides[param.name] ?? param.value;
+      const label = param.description || param.name;
+
+      if (param.options && param.options.length > 0) {
+        return {
+          type: "select" as const,
+          id: `script_${param.name}`,
+          label,
+          value: String(currentVal),
+          options: param.options.map((opt) => ({ value: String(opt.value), label: opt.label })),
+          onChange: (nextVal: string) => {
+            const nextOverrides = { ...overrides, [param.name]: nextVal };
+            onUpdate({ scriptParams: nextOverrides });
+            rebuildScriptShapeOffThread(shape, source, nextOverrides, onUpdate);
+          },
+        };
+      }
+
+      if (param.type === "boolean") {
+        return {
+          type: "toggle" as const,
+          id: `script_${param.name}`,
+          label,
+          value: Boolean(currentVal),
+          onChange: (nextVal: boolean) => {
+            const nextOverrides = { ...overrides, [param.name]: nextVal };
+            onUpdate({ scriptParams: nextOverrides });
+            rebuildScriptShapeOffThread(shape, source, nextOverrides, onUpdate);
+          },
+        };
+      }
+
+      return {
+        id: `script_${param.name}`,
+        label,
+        value: typeof currentVal === "number" ? currentVal : Number(currentVal) || 0,
+        min: param.min ?? 0.1,
+        max: param.max ?? Math.max(100, (Number(currentVal) || 0) * 2),
+        step: param.step ?? (Number.isInteger(param.value) ? 1 : 0.5),
+        onChange: (nextVal: number) => {
+          const nextOverrides = { ...overrides, [param.name]: nextVal };
+          onUpdate({ scriptParams: nextOverrides });
+          rebuildScriptShapeOffThread(shape, source, nextOverrides, onUpdate);
+        },
+      };
+    });
+
+    return [
+      ...scriptProps,
+      { id: "width", label: t("prop.width"), value: width, min: MIN_SHAPE_SIZE, max: 480, onChange: setWidth },
+      { id: "length", label: t("prop.length"), value: depth, min: MIN_SHAPE_SIZE, max: 480, onChange: setDepth },
+      { id: "height", label: t("prop.height"), value: shape.height, min: MIN_SHAPE_SIZE, max: 480, onChange: setHeight },
+    ];
+  }
+
   if (shape.kind === "sphere") {
     return [
       { id: "steps", label: t("prop.steps"), value: shape.steps ?? 24, min: 6, max: MAX_HIGH_RESOLUTION_STEPS, step: 1, onChange: (steps) => onUpdate({ steps: Math.round(steps) }) },
@@ -4800,6 +4863,13 @@ export function ShapeInspector({
   useEffect(() => setVaseDrawOpen(false), [shape.id]);
   const [threadOpen, setThreadOpen] = useInspectorCard("thread", true);
   const [gearHelixOpen, setGearHelixOpen] = useInspectorCard("gearHelix", true);
+  const [scriptModalOpen, setScriptModalOpen] = useState(false);
+  useEffect(() => setScriptModalOpen(false), [shape.id]);
+  useEffect(() => {
+    if (shape.kind === "script" && !shape.importedMesh) {
+      rebuildScriptShapeOffThread(shape, shape.scriptSource ?? DEFAULT_SCRIPT_SOURCE, shape.scriptParams, onUpdate);
+    }
+  }, [shape.id, shape.kind, shape.importedMesh, shape.scriptSource, shape.scriptParams, onUpdate]);
   const [colorOpen, setColorOpen] = useState(false);
   const { colors: recentColors, remember: rememberColor } = useRecentColors(SOLID_COLORS);
   const { colors: keptColors, toggle: toggleKeptColor } = useKeptColors();
@@ -4920,6 +4990,63 @@ export function ShapeInspector({
         <IconTagCard key={`icon-tag-${shape.id}`} shapeId={shape.id} controls={iconTag} workspace={workspace} disabled={frozen} onInteractionActiveChange={onInteractionActiveChange} />
       ) : iconTag ? (
         <MakeIconLayersButton disabled={frozen} onLayer={iconTag.onLayer} />
+      ) : null}
+      {shape.kind === "script" ? (
+        <div style={{ padding: "8px 12px 4px 12px" }}>
+          <button
+            type="button"
+            className="toolbar-btn secondary"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              background: "#3182ce",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 500,
+              fontSize: "13px",
+            }}
+            onClick={() => setScriptModalOpen(true)}
+            disabled={frozen}
+          >
+            <Code size={16} />
+            <span>Edit Script...</span>
+          </button>
+          {shape.scriptError ? (
+            <div style={{ marginTop: "8px", padding: "6px 8px", background: "#742a2a", color: "#fff", fontSize: "11px", borderRadius: "4px", whiteSpace: "pre-wrap" }}>
+              {shape.scriptError}
+            </div>
+          ) : null}
+          <ScriptEditorModal
+            isOpen={scriptModalOpen}
+            initialSource={shape.scriptSource ?? DEFAULT_SCRIPT_SOURCE}
+            error={shape.scriptError}
+            onClose={() => setScriptModalOpen(false)}
+            onApply={(newSource) => {
+              const newTitle = extractScriptTitle(newSource);
+              const newParams = parseScriptParams(newSource);
+              const initialOverrides: Record<string, any> = {};
+              for (const p of newParams) {
+                initialOverrides[p.name] = p.value;
+              }
+              const updates: Partial<WorkplaneShape> = {
+                scriptSource: newSource,
+                scriptParams: initialOverrides,
+              };
+              if (newTitle) {
+                updates.name = newTitle;
+              }
+              onUpdate(updates);
+              rebuildScriptShapeOffThread(shape, newSource, initialOverrides, onUpdate);
+              setScriptModalOpen(false);
+            }}
+          />
+        </div>
       ) : null}
       {shape.groupOperation === "bundle" || !isNonSolidShape(shape) ? (
       <div className="shape-state-card" role="group" aria-label={t("inspector.shapeMode")}>

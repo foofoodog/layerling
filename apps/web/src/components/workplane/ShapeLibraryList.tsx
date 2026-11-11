@@ -26,6 +26,8 @@ export function ShapeLibraryList<T extends LibraryShape>({
   shapes,
   label,
   renderTile,
+  modelShapes = null,
+  countModelMatches,
   customShapes = null,
   countCustomMatches,
 }: {
@@ -34,6 +36,10 @@ export function ShapeLibraryList<T extends LibraryShape>({
   /** A shape's name in the current language, as its tile shows it. */
   label: (shape: T) => string;
   renderTile: (shape: T) => ReactNode;
+  /** The model shapes' section, above the custom shapes. */
+  modelShapes?: ReactNode | ((query: string) => ReactNode);
+  /** How many model shapes match a search. */
+  countModelMatches?: (query: string) => number;
   /** The custom shapes' section, above the library's. While searching it is asked again with the query, and shows only the matches. */
   customShapes?: ReactNode | ((query: string) => ReactNode);
   /** How many custom shapes match a search (#1537), so "No shapes found" shows only when neither they nor the library match. */
@@ -65,6 +71,8 @@ export function ShapeLibraryList<T extends LibraryShape>({
   const matches = searching ? searchShapeLibrary(sections, query, label) : null;
   const customMatchCount = searching && countCustomMatches ? countCustomMatches(query) : 0;
   const customNode = typeof customShapes === "function" ? (searching ? customShapes(query) : customShapes("")) : customShapes;
+  const modelMatchCount = searching && countModelMatches ? countModelMatches(query) : 0;
+  const modelNode = typeof modelShapes === "function" ? (searching ? modelShapes(query) : modelShapes("")) : modelShapes;
   const byId = new Map(shapes.map((shape) => [shape.id, shape]));
   const recent = recentIds.flatMap((id) => byId.get(id) ?? []);
 
@@ -111,10 +119,11 @@ export function ShapeLibraryList<T extends LibraryShape>({
       </div>
 
       {matches ? (
-        matches.length === 0 && customMatchCount === 0 ? (
+        matches.length === 0 && customMatchCount === 0 && modelMatchCount === 0 ? (
           <p className="shape-library-empty" role="status">{t("library.noMatch")}</p>
         ) : (
           <>
+          {modelMatchCount > 0 ? modelNode : null}
           {customMatchCount > 0 ? customNode : null}
           {matches.map((section) => (
             <section key={section.id} className="shape-library-section" aria-label={sectionLabel(section.id)}>
@@ -130,6 +139,7 @@ export function ShapeLibraryList<T extends LibraryShape>({
         )
       ) : (
         <>
+          {modelNode}
           {customNode}
           {recent.length > 0 ? (
             <section className="shape-library-section shape-library-recent" aria-label={t("library.recent")}>

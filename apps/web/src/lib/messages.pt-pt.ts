@@ -2801,6 +2801,7 @@ export const MESSAGES_PT_PT: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Polígono",
   "shape.ruler": "Régua",
+  "shape.script": "Script Shape",
   "shape.group": "Grupo",
   "shape.bundle": "Conjunto",
   "inspector.bundleNote": "Um conjunto apenas mantém as peças juntas: cada uma conserva a sua cor e tipo, as formas de corte nunca cortam as próprias peças, nem mais tarde num grupo (aí cortam apenas as outras peças) e cada peça é exportada como um sólido independente. E abre o conjunto para edição e Ctrl+Shift+G separa as peças.",

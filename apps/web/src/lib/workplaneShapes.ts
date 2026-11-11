@@ -1014,6 +1014,9 @@ export function workplaneShapesEqual(a: WorkplaneShape, b: WorkplaneShape) {
     Boolean(a.stencilBridge) === Boolean(b.stencilBridge) &&
     Boolean(a.breakawayBase) === Boolean(b.breakawayBase) &&
     a.rotationPivot === b.rotationPivot &&
+    a.scriptSource === b.scriptSource &&
+    JSON.stringify(a.scriptParams ?? null) === JSON.stringify(b.scriptParams ?? null) &&
+    a.scriptError === b.scriptError &&
     fieldFormulasEqual(a.formulas, b.formulas) &&
     a.locked === b.locked &&
     Boolean(a.shapeLocked) === Boolean(b.shapeLocked) &&

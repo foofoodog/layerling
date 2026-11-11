@@ -42,8 +42,15 @@ export async function loadBrepWithOcct(): Promise<Brep> {
   // instead of poisoning STEP for the rest of the session.
   brepReady ??= (async () => {
     const brep = await import("brepjs");
-    const occt = (await import(/* webpackIgnore: true */ OCCT_INDEX_URL)) as unknown as OcctWasmModule;
-    const kernel = await occt.OcctKernel.init({ wasm: OCCT_WASM_URL });
+    let occt: OcctWasmModule;
+    let kernel: import("occt-wasm").OcctKernel;
+    if (typeof window === "undefined") {
+      occt = (await import("occt-wasm")) as unknown as OcctWasmModule;
+      kernel = await occt.OcctKernel.init();
+    } else {
+      occt = (await import(/* webpackIgnore: true */ OCCT_INDEX_URL)) as unknown as OcctWasmModule;
+      kernel = await occt.OcctKernel.init({ wasm: OCCT_WASM_URL });
+    }
     rawKernel = kernel;
     brep.registerKernel("occt-wasm", brep.OcctWasmAdapter.fromKernel(kernel));
     return brep;

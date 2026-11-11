@@ -125,6 +125,7 @@ import { FileBackupsDialog, fileBackupName } from "@/components/FileBackupsDialo
 import { HistoryViewOverlay, historyStateNameSuffix } from "./workplane/HistoryViewOverlay";
 import { useHistoryViewPicking } from "./workplane/useHistoryViewPicking";
 import { ShortcutsModal } from "./workplane/ShortcutsModal";
+import { ScriptPasteModal } from "@/components/workplane/ScriptPasteModal";
 import { WhatsNewWindow } from "./workplane/WhatsNewWindow";
 import { InteractiveHelp } from "./InteractiveHelp";
 import { ShapeContextMenu, type ShapeContextMenuItem } from "./workplane/ShapeContextMenu";
@@ -172,6 +173,7 @@ import { dedupeProjectAssets } from "@/lib/projectAssets";
 import { useCustomShapes } from "@/lib/useCustomShapes";
 import { packBackup } from "@/lib/projectBackup";
 import { MyShapesSection } from "@/components/workplane/MyShapesSection";
+import { ModelShapesSection, countModelShapeMatches } from "@/components/workplane/ModelShapesSection";
 import { searchCustomShapes } from "@/lib/customShapeSearch";
 import { addLineIntersectionPoints, onlyMovesPoints, splitSketchSegment } from "@/lib/sketchPointRefinement";
 import { joinOpenEnds } from "@/lib/sketchPointJoin";
@@ -191,7 +193,7 @@ import { ensureLylFileWritable, forgetLylFile, forgetStlFile, linkedLylFile, lin
 import { addFileBackup, allowBackupFolder, fileBackupsOfDesign, listFileBackups, OPEN_FILE_BACKUPS_EVENT, readFileBackupBytes, readFileBackupSettings } from "@/lib/fileBackups";
 import { backupFileBeforeOverwrite, takeEditorBackupReminder } from "@/components/workplane/fileBackupEditor";
 import { copyNamePatterns, shapeNamesIn, withCopyName } from "@/lib/shapeCopyName";
-import { clipboardShape, displayShapeName, hasOwnShapeName, iconTagAsset, qrCodeAsset, makeShapeFromAsset, nameTagAsset, sbcBoardAsset, shapeAssetLabel, toolbarShapeAssets } from "@/lib/shapeCatalog";
+import { clipboardShape, displayShapeName, hasOwnShapeName, iconTagAsset, qrCodeAsset, makeShapeFromAsset, makeScriptShapeAsset, nameTagAsset, sbcBoardAsset, shapeAssetLabel, toolbarShapeAssets, type ToolbarShapeAsset } from "@/lib/shapeCatalog";
 import { storeRecentShape } from "@/lib/shapeLibrarySections";
 import { PORT_PRESET_ORDER, PORT_PRESETS, portPresetSize, type PortPreset } from "@/lib/portGeometry";
 import { WASHER_SIZE_ORDER, isWasherSize, washerTubeFields } from "@/lib/washerSizes";
@@ -203,6 +205,7 @@ import { exportMeshesTo3mfAsync, THREE_MF_MEDIA_TYPE } from "@/lib/threemfExport
 import { importedShapeFromSvg, invalidSvgMeshReason } from "@/lib/svgImport";
 import { toSvgProjection, toSvgTopEdges, type SvgProjectionLayer } from "@/lib/svgExport";
 import { leaveGuardReleased } from "@/lib/leaveGuard";
+import { extractScriptTitle } from "@/lib/scriptShape";
 import { outlinesToDxf, type DxfResult } from "@/lib/dxfExport";
 import { type StencilBridgeOptions } from "@/lib/stencilBridges";
 import { withStencilBridges } from "@/lib/stencilBridgeSection";
@@ -556,7 +559,22 @@ async function readSystemClipboard(): Promise<ClipboardPayload<WorkplaneShape> |
  */
 function systemClipboardShapes(value: string): ClipboardPayload<WorkplaneShape> | null {
   const text = value.replace(/^(LAYERLING\/1)\r\n/, "$1\n");
-  if (!text.startsWith(SYSTEM_CLIPBOARD_PREFIX)) return null;
+  if (!text.startsWith(SYSTEM_CLIPBOARD_PREFIX)) {
+    // If raw brepjs script is copied to clipboard, paste it directly as a Script Shape
+    if (text.includes("brepjs") || /(?:export\s+default|function\s+[a-zA-Z0-9_$]+\s*\()/.test(text)) {
+      const scriptAsset = toolbarShapeAssets.find((a) => a.kind === "script");
+      if (scriptAsset) {
+        const title = extractScriptTitle(text) ?? "Script Shape";
+        const shape = makeShapeFromAsset(scriptAsset, undefined, { scriptSource: text });
+        shape.name = title;
+        return {
+          copiedAt: Date.now(),
+          shapes: [shape],
+        };
+      }
+    }
+    return null;
+  }
   return parseClipboardShapes(text.slice(SYSTEM_CLIPBOARD_PREFIX.length));
 }
 
@@ -3223,6 +3241,10 @@ export function LayerlingEditor({
   const [iconTagPanelOpen, setIconTagPanelOpen] = useState(false);
   const [qrCodePanelOpen, setQrCodePanelOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [scriptPastePending, setScriptPastePending] = useState<{
+    sourceClipboard: WorkplaneShape[];
+    detectedName: string;
+  } | null>(null);
   // The list of updates over the design (#1530), so it can be read while a new tool is tried.
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   // Interactive Help: while on, a click asks the guide about the element instead of using it.
@@ -7089,6 +7111,128 @@ export function LayerlingEditor({
       : t("status.copiedMany", { count: selectedShapes.length }));
   }, [hasSelection, selectedShapes]);
 
+  const commitPastedShapes = useCallback((sourceClipboard: WorkplaneShape[]) => {
+    const takenNames = shapeNamesIn(shapesRef.current);
+    const copies = sourceClipboard.map((shape) => withCopyName(cloneWorkplaneShapeTreeWithFreshIds(shape, "paste"), takenNames, copyNamePatterns(), true));
+    // With "Paste in the middle and drop" the parts come together to the middle of the workplane and stand on it,
+    // wherever the other program had them (#876); else each is moved a little from where it was.
+    const centering = workspaceSettings.pasteCentered ? pasteCenteringShift(copies, placementWorkplaneRef.current) : null;
+    const pasted = centering
+      ? copies.map((shape) => ({
+        ...shape,
+        x: cleanNearZero(shape.x + centering.x),
+        z: cleanNearZero(shape.z + centering.z),
+        elevation: cleanNearZero((shape.elevation ?? 0) + centering.y),
+      }))
+      : pasteNudged(copies, sourceClipboard);
+    commitShapes([...shapesRef.current, ...pasted], pasted.map((shape) => shape.id), pasted.length === 1 ? t("status.pastedOne") : t("status.pastedMany", { count: pasted.length }));
+  }, [commitShapes, workspaceSettings.pasteCentered]);
+
+  const handleScriptPasteConfirm = useCallback(({ mode, name }: { mode: "script" | "geometry"; name: string }) => {
+    if (!scriptPastePending) return;
+    const { sourceClipboard } = scriptPastePending;
+
+    if (mode === "script") {
+      const scriptShapes = sourceClipboard.filter((s) => s.kind === "script" || Boolean(s.scriptSource));
+      const nonScriptShapes = sourceClipboard.filter((s) => s.kind !== "script" && !s.scriptSource);
+
+      if (scriptShapes.length > 1) {
+        // Merge multiple sub-mesh parts of the procedural model into a single coherent script shape
+        const first = scriptShapes[0];
+        let overallMinX = Infinity, overallMaxX = -Infinity;
+        let overallMinY = Infinity, overallMaxY = -Infinity;
+        let overallMinZ = Infinity, overallMaxZ = -Infinity;
+
+        const parts = scriptShapes.map((s) => {
+          const mesh = s.importedMesh;
+          const pos = mesh?.positions ?? [];
+          const sx = s.x;
+          const sy = s.elevation ?? 0;
+          const sz = s.z;
+          for (let i = 0; i < pos.length; i += 3) {
+            const wx = sx + pos[i];
+            const wy = sy + pos[i + 1];
+            const wz = sz + pos[i + 2];
+            if (wx < overallMinX) overallMinX = wx;
+            if (wx > overallMaxX) overallMaxX = wx;
+            if (wy < overallMinY) overallMinY = wy;
+            if (wy > overallMaxY) overallMaxY = wy;
+            if (wz < overallMinZ) overallMinZ = wz;
+            if (wz > overallMaxZ) overallMaxZ = wz;
+          }
+          return { s, pos, sx, sy, sz };
+        });
+
+        const width = Math.max(0.1, Number((overallMaxX - overallMinX).toFixed(2)));
+        const height = Math.max(0.1, Number((overallMaxY - overallMinY).toFixed(2)));
+        const depth = Math.max(0.1, Number((overallMaxZ - overallMinZ).toFixed(2)));
+        const size = Math.max(width, depth);
+        const centerX = (overallMinX + overallMaxX) / 2;
+        const centerZ = (overallMinZ + overallMaxZ) / 2;
+
+        const totalPositions = parts.reduce((acc, p) => acc + p.pos.length, 0);
+        const localPositions = new Array<number>(totalPositions);
+        let ptr = 0;
+        for (const p of parts) {
+          for (let i = 0; i < p.pos.length; i += 3) {
+            localPositions[ptr++] = Number((p.sx + p.pos[i] - centerX).toFixed(5));
+            localPositions[ptr++] = Number((p.sy + p.pos[i + 1] - overallMinY).toFixed(5));
+            localPositions[ptr++] = Number((p.sz + p.pos[i + 2] - centerZ).toFixed(5));
+          }
+        }
+
+        const mergedScriptShape: WorkplaneShape = {
+          ...first,
+          id: createLocalId("script-shape"),
+          kind: "script",
+          name,
+          x: Number(centerX.toFixed(2)),
+          elevation: Number(overallMinY.toFixed(2)),
+          z: Number(centerZ.toFixed(2)),
+          size: Number(size.toFixed(2)),
+          width,
+          height,
+          depth,
+          importedMesh: {
+            positions: localPositions,
+            baseWidth: width,
+            baseHeight: height,
+            baseDepth: depth,
+            triangleCount: localPositions.length / 9,
+            sourceFormat: "stl",
+            assetId: createLocalId("asset").replace(/-/g, ""),
+          },
+        };
+
+        setScriptPastePending(null);
+        commitPastedShapes([...nonScriptShapes, mergedScriptShape]);
+        return;
+      }
+    }
+
+    const prepared = sourceClipboard.map((shape) => {
+      if (shape.kind === "script" || Boolean(shape.scriptSource)) {
+        if (mode === "script") {
+          return {
+            ...shape,
+            kind: "script" as const,
+            name,
+          };
+        } else {
+          const { scriptSource, scriptParams, scriptError, ...geoOnly } = shape;
+          return {
+            ...geoOnly,
+            kind: "mesh" as const,
+            name,
+          };
+        }
+      }
+      return shape;
+    });
+    setScriptPastePending(null);
+    commitPastedShapes(prepared);
+  }, [scriptPastePending, commitPastedShapes]);
+
   /**
    * `systemText` is the system clipboard as the browser's paste event handed it over with Ctrl+V. Without it (the
    * Paste button, the context menu) the clipboard is asked for, which Firefox confirms each time with a small Paste
@@ -7117,21 +7261,37 @@ export function LayerlingEditor({
       clipboardCopiedAtRef.current = newest.copiedAt;
       setClipboard(sourceClipboard);
     }
-    const takenNames = shapeNamesIn(shapesRef.current);
-    const copies = sourceClipboard.map((shape) => withCopyName(cloneWorkplaneShapeTreeWithFreshIds(shape, "paste"), takenNames, copyNamePatterns(), true));
-    // With "Paste in the middle and drop" the parts come together to the middle of the workplane and stand on it,
-    // wherever the other program had them (#876); else each is moved a little from where it was.
-    const centering = workspaceSettings.pasteCentered ? pasteCenteringShift(copies, placementWorkplaneRef.current) : null;
-    const pasted = centering
-      ? copies.map((shape) => ({
-        ...shape,
-        x: cleanNearZero(shape.x + centering.x),
-        z: cleanNearZero(shape.z + centering.z),
-        elevation: cleanNearZero((shape.elevation ?? 0) + centering.y),
-      }))
-      : pasteNudged(copies, sourceClipboard);
-    commitShapes([...shapesRef.current, ...pasted], pasted.map((shape) => shape.id), pasted.length === 1 ? t("status.pastedOne") : t("status.pastedMany", { count: pasted.length }));
-  }, [clipboard, commitShapes, workspaceSettings.pasteCentered]);
+
+    const scriptShape = sourceClipboard.find((shape) => shape.kind === "script" || Boolean(shape.scriptSource));
+    if (scriptShape) {
+      if (workspaceSettings.pasteParametricShapes) {
+        const detectedName = scriptShape.name && scriptShape.name !== "Script Shape"
+          ? scriptShape.name
+          : (scriptShape.scriptSource ? extractScriptTitle(scriptShape.scriptSource) : undefined) ?? "Script Shape";
+        setScriptPastePending({
+          sourceClipboard,
+          detectedName,
+        });
+        return;
+      }
+
+      // Off by default: seamless paste as standard geometry, exactly the old functionality
+      const bakedShapes = sourceClipboard.map((shape) => {
+        if (shape.kind === "script" || Boolean(shape.scriptSource)) {
+          const { scriptSource, scriptParams, scriptError, ...geoOnly } = shape;
+          return {
+            ...geoOnly,
+            kind: "mesh" as const,
+          };
+        }
+        return shape;
+      });
+      commitPastedShapes(bakedShapes);
+      return;
+    }
+
+    commitPastedShapes(sourceClipboard);
+  }, [clipboard, commitPastedShapes, workspaceSettings.pasteParametricShapes]);
   pasteShapeRef.current = pasteShape;
 
   // The paste that follows Ctrl+V (#1548): its clipboard text is handed over with the key press, so Firefox does not
@@ -18915,6 +19075,33 @@ export function LayerlingEditor({
         onInsertCustomShape={insertCustomShapeAndCarry}
         onNotice={(text) => setNotice(text)}
         splitActive={Boolean(splitSession)}
+        countModelMatches={(query) => countModelShapeMatches(shapes, query)}
+        renderModelShapes={(close, query) => (
+          <ModelShapesSection
+            searchQuery={query}
+            shapes={shapes}
+            onInsert={(shape) => {
+              close();
+              const asset: ShapeAsset = {
+                id: `model_${shape.id}`,
+                name: shape.name || displayShapeName(shape),
+                kind: shape.kind,
+                src: "",
+                color: shape.color || "#3b82f6",
+                hole: shape.hole,
+                scriptSource: shape.scriptSource,
+                scriptParams: shape.scriptParams,
+              };
+              setTopPanel(null);
+              if (workspaceSettings.clickToPlaceShapes) {
+                startCruise(asset);
+                return;
+              }
+              addShape(asset);
+            }}
+            onDragDone={close}
+          />
+        )}
         countMyShapeMatches={(query) => searchCustomShapes(customShapeEntries, query).length}
         renderMyShapes={(close, query) => (
           <MyShapesSection
@@ -19978,6 +20165,14 @@ export function LayerlingEditor({
           scope={{ projectId: projectInfoRef.current.projectId ?? null, fileHandle: linkedLylFile(projectInfoRef.current.projectId ?? ""), name: projectName }}
           onOpen={(file, name) => onOpenLylProjectFile?.(file, undefined, undefined, { name })}
           onClose={() => setBackupsOpen(false)}
+        />
+      ) : null}
+      {scriptPastePending ? (
+        <ScriptPasteModal
+          isOpen={true}
+          detectedName={scriptPastePending.detectedName}
+          onClose={() => setScriptPastePending(null)}
+          onPaste={handleScriptPasteConfirm}
         />
       ) : null}
       {notice ? (

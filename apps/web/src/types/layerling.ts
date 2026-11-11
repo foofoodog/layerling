@@ -47,6 +47,7 @@ export type ShapeKind =
   | "polygon"
   | "icosahedron"
   | "ruler"
+  | "script"
   | "mesh";
 
 /** Outline of a port opening (portGeometry.ts): rounded corners, or the lower corners cut as on these sockets. */
@@ -76,6 +77,8 @@ export type ShapeAsset = {
   kind: ShapeKind;
   color: string;
   hole?: boolean;
+  scriptSource?: string;
+  scriptParams?: Record<string, any>;
 };
 
 export type ProjectAssetSourceFormat = "stl" | "obj" | "svg" | "step" | "3mf";
@@ -268,6 +271,12 @@ export type ShapeCustomization = {
   hingeKnuckles?: number;
   /** Tube or ring: its bore counts as a hole when the shape is grouped, and cuts what it is grouped with - a wall of another tube in a T-junction (#892). */
   tubeBoreHole?: boolean;
+  /** Scriptable shape source code */
+  scriptSource?: string;
+  /** Scriptable shape parameter values */
+  scriptParams?: Record<string, number | boolean | string>;
+  /** Scriptable shape evaluation error message */
+  scriptError?: string;
   /** Hinge: the knuckles are at most this wide in mm and their number follows; left out, the count of `hingeKnuckles` stands (#907). */
   hingeKnuckleWidth?: number;
   /** Hinge, cone style: the diameter of the cones at their root in mm; left out, the largest that fits (#907). */
@@ -574,6 +583,8 @@ export type WorkplaneWorkspaceSettings = {
   frameByDirection: boolean;
   /** Pasted parts are set in the middle of the workplane and dropped onto it, instead of where they came from (#876). */
   pasteCentered: boolean;
+  /** Advanced: When pasting procedural code from brepjs, prompt to paste as an editable parametric script shape. Off by default. */
+  pasteParametricShapes: boolean;
   /** A double click on a sketch body opens its sketch; on a group or bundle, opens it for editing (#150). */
   doubleClickOpensSketch: boolean;
   doubleClickOpensGroup: boolean;
@@ -1197,6 +1208,12 @@ export type WorkplaneShape = {
   hingeKnuckles?: number;
   /** Tube or ring: its bore counts as a hole when the shape is grouped, and cuts what it is grouped with - a wall of another tube in a T-junction (#892). */
   tubeBoreHole?: boolean;
+  /** Scriptable shape source code */
+  scriptSource?: string;
+  /** Scriptable shape parameter values */
+  scriptParams?: Record<string, number | boolean | string>;
+  /** Scriptable shape evaluation error message */
+  scriptError?: string;
   /** Hinge: the knuckles are at most this wide in mm and their number follows; left out, the count of `hingeKnuckles` stands (#907). */
   hingeKnuckleWidth?: number;
   /** Hinge, cone style: the diameter of the cones at their root in mm; left out, the largest that fits (#907). */
@@ -1692,6 +1709,8 @@ export type WorkplaneShape = {
   /** Drawn see-through in its own colour, like the usual "Transparent". Display only - a solid stays a solid. */
   transparent?: boolean;
 };
+
+export type ImportedMesh = NonNullable<WorkplaneShape["importedMesh"]>;
 
 /**
  * Woran eine Notiz haengt, wenn sie nicht frei auf der Arbeitsebene steht: an

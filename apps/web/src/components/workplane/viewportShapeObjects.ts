@@ -2479,6 +2479,25 @@ export function createShapeObject(
     case "text":
       addTextShape(group, material, shape, geometryCacheKey);
       break;
+    case "script":
+      if (shape.importedMesh) {
+        addMesh(
+          group,
+          getImportedMeshGeometry(shape.importedMesh),
+          material,
+          shape,
+          undefined,
+          undefined,
+          new THREE.Vector3(
+            width / Math.max(0.001, shape.importedMesh.baseWidth),
+            height / Math.max(0.001, shape.importedMesh.baseHeight),
+            depth / Math.max(0.001, shape.importedMesh.baseDepth),
+          ),
+        );
+      } else {
+        addMesh(group, sharedShapeGeometry(geometryCacheKey, () => new THREE.BoxGeometry(1, 1, 1)), material, shape, undefined, undefined, new THREE.Vector3(width, height, depth));
+      }
+      break;
     case "mesh":
       if (shape.importedMesh) {
         const preserveEdgeSize = preservesEdgeTreatmentSize(shape);
@@ -3005,7 +3024,7 @@ export function addShapeEdgeDecorations(group: THREE.Group, mesh: THREE.Mesh, pr
   const complexEdges =
     shape.kind === "mesh" ||
     Boolean(shape.importedMesh) ||
-    ["cone", "pyramid", "roof", "roundRoof", "halfSphere", "paraboloid", "curvedCone", "torus", "tube", "ring", "star", "gear", "hirth", "pulley", "wedge", "polygon", "heart", "crescent", "slot", "dovetail", "screwBoss", "snapFit", "rib", "hinge", "gridfinity", "knurl", "teardrop", "port", "counterbore", "countersink", "doubleCountersink", "finishingWasher", "honeycomb", "loft"].includes(shape.kind);
+    ["cone", "pyramid", "roof", "roundRoof", "halfSphere", "paraboloid", "curvedCone", "torus", "tube", "ring", "star", "gear", "hirth", "pulley", "wedge", "polygon", "heart", "crescent", "slot", "dovetail", "screwBoss", "snapFit", "rib", "hinge", "gridfinity", "knurl", "teardrop", "port", "counterbore", "countersink", "doubleCountersink", "finishingWasher", "honeycomb", "loft", "script"].includes(shape.kind);
   const importedTriangleCount = shape.importedMesh?.triangleCount ?? 0;
   // A vase's relief has an edge at every rib: drawn like a heavy imported mesh, without the lines.
   const skipHeavyImportedEdges = (Boolean(shape.importedMesh) && importedTriangleCount > IMPORTED_SELECTED_EDGE_TRIANGLE_LIMIT)

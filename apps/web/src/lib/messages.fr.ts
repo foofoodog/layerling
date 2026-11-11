@@ -2921,6 +2921,7 @@ export const MESSAGES_FR: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Polygone",
   "shape.ruler": "Règle",
+  "shape.script": "Script Shape",
   "shape.group": "Groupe",
   "shape.bundle": "Forfait",
   "inspector.bundleNote": "Un paquet ne maintient que ses parties ensemble : chacune garde sa couleur et son type, ses trous ne coupent jamais ses propres parties, même plus tard dans un groupe (là, ils ne coupent que les autres parties), et dans une exportation, chaque partie est un corps qui lui est propre. E l'ouvre pour l'éditer, Ctrl+Shift+G le démonte.",

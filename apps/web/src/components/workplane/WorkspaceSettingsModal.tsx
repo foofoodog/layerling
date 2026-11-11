@@ -1045,6 +1045,12 @@ export function WorkspaceSettingsModal({
                     onChange={(pasteCentered) => patchWorkspace({ pasteCentered })}
                   />
                   <WorkspaceToggle
+                    label={t("workspace.pasteParametricShapes")}
+                    description={t("workspace.pasteParametricShapesHint")}
+                    checked={Boolean(workspace.pasteParametricShapes)}
+                    onChange={(pasteParametricShapes) => patchWorkspace({ pasteParametricShapes })}
+                  />
+                  <WorkspaceToggle
                     label={t("workspace.doubleClickOpensSketch")}
                     checked={workspace.doubleClickOpensSketch}
                     onChange={(doubleClickOpensSketch) => patchWorkspace({ doubleClickOpensSketch })}

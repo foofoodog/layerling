@@ -2258,6 +2258,7 @@ export const MESSAGES_JA: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "多角形",
   "shape.ruler": "定規",
+  "shape.script": "Script Shape",
   "shape.group": "グループ",
   "shape.bundle": "バンドル",
   "inspector.bundleNote": "バンドルはパーツをまとめて保持するだけです。各パーツは色と種類を保ち、穴は自分のパーツを切り抜かず（後でグループにしても同じで、切り抜くのはほかのパーツだけです）、エクスポート時には各パーツが独立したボディになります。Eで開いて編集、Ctrl+Shift+Gでばらします。",

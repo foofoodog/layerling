@@ -836,6 +836,7 @@ export const MESSAGES_PT_BR: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Polígono",
   "shape.ruler": "Régua",
+  "shape.script": "Script Shape",
   "shape.group": "Grupo",
   "shape.bundle": "Conjunto",
   "shape.intersection": "Interseção",

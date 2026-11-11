@@ -1905,6 +1905,7 @@ export const MESSAGES_TR: Partial<Record<MessageKey, string>> = {
   "shape.gridfinity": "Gridfinity",
   "shape.polygon": "Çokgen",
   "shape.ruler": "Cetvel",
+  "shape.script": "Script Shape",
   "shape.group": "Grup",
   "shape.bundle": "Paket",
   "inspector.bundleNote": "Bir paket sadece parçalarını bir arada tutar: her biri rengini ve türünü korur, delikleri kendi parçalarını asla kesmez, sonradan bir grupta da (orada yalnızca diğer parçaları keser) ve dışa aktarımda her parça ayrı bir gövdedir. E onu düzenlemek için açar, Ctrl+Shift+G onu dağıtır.",
